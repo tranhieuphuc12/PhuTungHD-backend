@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const router = express.Router();
 const User = require("../models/User");
 const JWT = require("jsonwebtoken");
+const auth = require("../middleware/authMiddleware");
 
 // Register
 router.post("/register", async (req, res) => {
@@ -51,7 +52,7 @@ router.post("/login", async (req, res) => {
         }
 
         // Create a new JWT token 
-        const token = JWT.sign({ id: user._id, phoneNumber: user.phoneNumber }, process.env.JWT_SECRET, { expiresIn: "30d" });
+        const token = JWT.sign({ id: user._id, phoneNumber: user.phoneNumber }, process.env.JWT_SECRET, { expiresIn: "10d" });
 
         // Save to db
         user.token = token;
@@ -68,5 +69,17 @@ router.post("/login", async (req, res) => {
         console.log("/login route executed");
     }
 });
+// Logout 
+router.post("/logout", auth, async (req, res) => {
+    try {
+        req.user.token = null;
+        await req.user.save();
 
+        res.json({ msg: "Logged out successfully" });
+    } catch (err) {
+        res.status(500).json({ msg: "Logout failed", error: err.message });
+    } finally {
+        console.log("/logout route executed");
+    }
+});
 module.exports = router;

@@ -3,7 +3,6 @@ const User = require("../models/User");
 
 const auth = async (req, res, next) => {
     const authHeader = req.headers.authorization;
-    // console.log("Auth Header:", authHeader);
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({ msg: "No token provided" });
@@ -15,8 +14,8 @@ const auth = async (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const user = await User.findById(decoded.id);
 
-        if (!user || user.token !== token) {
-            return res.status(401).json({ msg: "Token is expired or invalid" });
+        if (!user) {
+            return res.status(401).json({ msg: "User not found" });
         }
 
         // Check if user has expired
@@ -28,7 +27,16 @@ const auth = async (req, res, next) => {
         req.user = user;
         next();
     } catch (err) {
-        res.status(401).json({ msg: "Token invalid or expired" });
+        if (err.name === "TokenExpiredError") {
+            return res.status(401).json({ msg: "Token has expired" });
+        }
+
+        if (err.name === "JsonWebTokenError") {
+            return res.status(401).json({ msg: "Token is invalid" });
+        }
+
+        // Any other JWT-related error
+        return res.status(401).json({ msg: "Authentication failed", error: err.message });
     } finally {
         console.log("Auth middleware executed");
     }
