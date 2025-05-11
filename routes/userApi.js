@@ -4,6 +4,7 @@ const router = express.Router();
 const User = require("../models/User");
 const JWT = require("jsonwebtoken");
 const auth = require("../middleware/authMiddleware");
+const ms = require("ms");
 
 // Register
 router.post("/register", async (req, res) => {
@@ -81,5 +82,37 @@ router.post("/logout", auth, async (req, res) => {
     } finally {
         console.log("/logout route executed");
     }
+});
+// Renew 
+router.post("/renew", auth, async (req, res) => {
+    try {
+        const extendedDuration = req.headers["duration"]; // e.g., "7d", "2h"
+        if (!extendedDuration) {
+            return res.status(400).json({ msg: "Duration header is required" });
+        }
+
+        const duration = ms(extendedDuration);
+        if (!duration) {
+            return res.status(400).json({ msg: "Invalid duration format" });
+        }
+
+        const newStartDate = new Date();
+        const currentEndDate = req.user.endDate ;
+        const newEndDate = new Date(currentEndDate.getTime() + duration);
+        req.user.startDate = newStartDate;
+        req.user.endDate = newEndDate;
+        await req.user.save();
+
+        res.status(200).json({
+            msg: "Renewed successfully",
+            startDate: newStartDate,
+            endDate: newEndDate,
+        });
+
+
+    } catch (error) {
+        res.status(500).json({ msg: "Renewal failed", error: error.message });
+    }
+
 });
 module.exports = router;
