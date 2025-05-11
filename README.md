@@ -1,3 +1,6 @@
+
+docker buildx build --platform linux/amd64 -t tranhieuphuc/express-api:latest --push .
+
 **workflow** to implement a **"single active session + expiration-based access control"** system using `Express.js + MongoDB + JWT`:
 
 
