@@ -17,4 +17,4 @@ COPY .env .env
 EXPOSE 5000
 
 # Start the app
-CMD ["node", "index.js"]
+CMD ["npm", "start"]
