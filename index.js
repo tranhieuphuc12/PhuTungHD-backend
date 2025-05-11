@@ -22,9 +22,9 @@ app.use(express.urlencoded({ extended: true }));
 
 
 // Routes
-app.use("/api/users", [userApi, profileApi]);
+app.use("/api-hd", [userApi, profileApi]);
 
-app.post("/api/", (req, res) => {
+app.get("/api-hd", (req, res) => {
   res.send("API is running...");
 });
 app.listen(PORT, () => console.log(`🚀 Server is running on port ${PORT}`));
