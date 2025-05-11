@@ -211,7 +211,7 @@ await user.save();
 
 ### 🧪 A. Create a user (via Postman or registration)
 
-**POST** `/api/users/register`
+**POST** `/api-hd/users/register`
 
 ```json
 {
@@ -224,7 +224,7 @@ await user.save();
 
 ### 🧪 B. Login
 
-**POST** `/api/users/login`
+**POST** `/api-hd/users/login`
 
 ```json
 {
@@ -246,7 +246,7 @@ await user.save();
 
 ### 🧪 C. Access protected route with token
 
-**GET** `/api/users/profile`
+**GET** `/api-hd/users/profile`
 Headers:
 
 ```
@@ -281,7 +281,7 @@ Then re-test `/profile`. You should get:
 
 ### 🧪 E. Logout
 
-**POST** `/api/users/logout`
+**POST** `/api-hd/users/logout`
 Headers:
 
 ```
