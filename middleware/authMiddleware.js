@@ -16,7 +16,13 @@ const auth = async (req, res, next) => {
 
         if (!user) {
             return res.status(401).json({ msg: "User not found" });
+        }   
+
+        // Check if token matches the one in the database
+        if (user.token !== token) {
+            return res.status(401).json({ msg: "Token did not match" });
         }
+
 
         // Check if user has expired
         if (user.endDate && new Date() > new Date(user.endDate)) {
