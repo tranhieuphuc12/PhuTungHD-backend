@@ -6,7 +6,7 @@ const userApi = require("./routes/userApi");
 const profileApi = require("./routes/profileApi");
 
 dotenv.config();
-const PORT = process.env.PORT_BACKEND_HD || 5000;
+const PORT = process.env.PORT_BACKEND_HD || 3001;
 connectDB();
 const app = express();
 // Middleware

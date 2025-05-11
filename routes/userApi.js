@@ -7,7 +7,7 @@ const auth = require("../middleware/authMiddleware");
 const ms = require("ms");
 
 // Register
-router.post("users/register", async (req, res) => {
+router.post("/users/register", async (req, res) => {
 
     try {
         const { phoneNumber, password } = req.body;
@@ -34,7 +34,7 @@ router.post("users/register", async (req, res) => {
 });
 
 // Login
-router.post("users/login", async (req, res) => {
+router.post("/users/login", async (req, res) => {
     try {
         const { phoneNumber, password } = req.body;
 
@@ -71,7 +71,7 @@ router.post("users/login", async (req, res) => {
     }
 });
 // Logout 
-router.post("users/logout", auth, async (req, res) => {
+router.post("/users/logout", auth, async (req, res) => {
     try {
         req.user.token = null;
         await req.user.save();
@@ -84,7 +84,7 @@ router.post("users/logout", auth, async (req, res) => {
     }
 });
 // Renew 
-router.post("users/renew", auth, async (req, res) => {
+router.post("/users/renew", auth, async (req, res) => {
     try {
         const extendedDuration = req.headers["duration"]; // e.g., "7d", "2h"
         if (!extendedDuration) {
