@@ -1,48 +1,30 @@
 
-docker buildx build --platform linux/amd64 -t tranhieuphuc/express-api:latest --push .
-
-**workflow** to implement a **"single active session + expiration-based access control"** system using `Express.js + MongoDB + JWT`:
-
 
 
 ## 🔄 **User Authentication Workflow (with session control + expiration)**
 
-
+## Base URL: `https://mvpauto.id.vn/api-hd/`
 
 ### 🔹 1. **User Registration**
+#### URL:`/users/register`
 
 * User sends phone number + password.
 * Password is hashed with `bcrypt`.
 * `startDate` is set to current time.
 * `endDate` is set to 30 days later (or a specific duration).
 
-```js
-router.post("/register", async (req, res) => {
+### 🧪 A. Create a user (via Postman or registration)
 
-    try {
-        const { phoneNumber, password } = req.body;
+**POST** `/api-hd/users/register`
 
-        if (!phoneNumber || !password) {
-            return res.status(400).json({ msg: "Phone number and password are required" });
-        }
-
-        const existingUser = await User.findOne({ phoneNumber });
-        if (existingUser) {
-            return res.status(400).json({ msg: "User already exists" });
-        }
-
-        const salt = await bcrypt.genSalt(10);
-        const hash = await bcrypt.hash(password, salt);
-
-        const newUser = new User({ phoneNumber, password: hash });
-        await newUser.save();
-
-        res.status(200).json({ msg: "User registered" });
-    } catch (err) {
-        res.status(500).json({ msg: "Server error", error: err.message });
-    }
-});
+```json
+{
+  "phoneNumber": "0123456789",
+  "password": "mypassword"
+}
 ```
+---
+
 ✅ Fields saved:
 
 ```js
@@ -58,6 +40,7 @@ router.post("/register", async (req, res) => {
 ---
 
 ### 🔹 2. **User Login**
+#### URL:`/users/login`
 
 * User submits phone number + password.
 * If valid:
@@ -67,162 +50,6 @@ router.post("/register", async (req, res) => {
 * Response includes the new JWT.
 
 ✅ Only one device stays logged in at a time.
-
-```js
-router.post("/login", async (req, res) => {
-    try {
-        const { phoneNumber, password } = req.body;
-
-
-        const user = await User.findOne({ phoneNumber });
-        if (!user) return res.status(400).json({ msg: "Invalid Phone Number" });
-
-
-        const isPasswordMatch = await bcrypt.compare(password, user.password);
-        if (!isPasswordMatch) return res.status(400).json({ msg: "Invalid Password" });
-
-
-        // Check if user has expired
-        if (user.endDate && new Date() > new Date(user.endDate)) {
-            return res.status(403).json({ msg: "Account expired. Please renew." });
-        }
-
-        // Create a new JWT token 
-        const token = JWT.sign({ id: user._id, phoneNumber: user.phoneNumber }, process.env.JWT_SECRET, { expiresIn: "10d" });
-
-        // Save to db
-        user.token = token;
-        await user.save();
-
-        res.status(200).json({
-            msg: "Login successful",
-            token,
-        });
-
-    } catch (err) {
-        res.status(500).json({ msg: "Server error" });
-    } finally {
-        console.log("/login route executed");
-    }
-});
-```
-
----
-
-### 🔹 3. **Protected Routes (with Middleware)**
-
-* All protected routes use `authMiddleware.js`:
-
-  * Verifies JWT.
-  * Finds user by `decoded.id`.
-  * Compares JWT in request vs `user.token` in DB.
-  * Checks if `endDate > current date`.
-```js
-
-const auth = async (req, res, next) => {
-    // Get the token from header 
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return res.status(401).json({ msg: "No token provided" });
-    }
-
-    const token = authHeader.split(" ")[1];
-
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.id);
-
-        if (!user) {
-            return res.status(401).json({ msg: "User not found" });
-        }
-
-        // Check if user has expired
-        if (user.endDate && new Date() > new Date(user.endDate)) {
-            return res.status(403).json({ msg: "Account expired. Please renew." });
-        }
-        req.user = user;
-        next();
-    } catch (err) {
-        if (err.name === "TokenExpiredError") {
-            return res.status(401).json({ msg: "Token has expired" });
-        }
-
-        if (err.name === "JsonWebTokenError") {
-            return res.status(401).json({ msg: "Token is invalid" });
-        }
-
-        // Any other JWT-related error
-        return res.status(401).json({ msg: "Authentication failed", error: err.message });
-    } finally {
-        console.log("Auth middleware executed");
-    }
-};
-```
-
-✅ If expired → return `403 Forbidden` with message like:
-
-> `"Account expired. Please renew your subscription."`
-
-✅ If token doesn't match → return `401 Unauthorized`.
-
----
-
-### 🔹 4. **User Logout**
-
-* User hits `/logout` with a valid JWT in headers.
-* Middleware verifies user.
-* Sets `user.token = null` in DB.
-* Returns success message.
-
-✅ Invalidates token and logs out current device.
-```js
-router.post("/logout", auth, async (req, res) => {
-    try {
-        req.user.token = null;
-        await req.user.save();
-
-        res.json({ msg: "Logged out successfully" });
-    } catch (err) {
-        res.status(500).json({ msg: "Logout failed", error: err.message });
-    } finally {
-        console.log("/logout route executed");
-    }
-});
-```
-
----
-
-### 🔹 5. **Account Expiration Handling**
-
-* Expiration is based on `endDate`.
-* In future you can add an admin panel or payment hook to **extend** the user's `endDate`.
-
-✅ Example:
-
-```js
-user.endDate = new Date(user.endDate.getTime() + 30 * 24 * 60 * 60 * 1000);
-await user.save();
-```
-
----
-
-## 🧪 How to Test
-
-### 🧪 A. Create a user (via Postman or registration)
-
-**POST** `/api-hd/users/register`
-
-```json
-{
-  "phoneNumber": "0123456789",
-  "password": "mypassword"
-}
-```
-
----
-
-### 🧪 B. Login
 
 **POST** `/api-hd/users/login`
 
@@ -244,42 +71,37 @@ await user.save();
 
 ---
 
-### 🧪 C. Access protected route with token
-
-**GET** `/api-hd/users/profile`
-Headers:
-
-```
-Authorization: Bearer <JWT_TOKEN>
-```
-
-* ✅ If account is valid → returns welcome message
-* ❌ If account is expired → returns `403 Account expired`
 
 ---
 
-### 🧪 D. Manually expire the user (simulate)
+### 🔹 3. **Protected Routes (with Middleware)**
 
-In MongoDB Compass or a script:
+* All protected routes use `authMiddleware.js`:
 
-```js
-await User.updateOne(
-  { phoneNumber: "0123456789" },
-  { $set: { endDate: new Date(Date.now() - 1000 * 60) } } // 1 min in the past
-);
-```
+  * Verifies JWT.
+  * Finds user by `decoded.id`.
+  * Compares JWT in request vs `user.token` in DB.
+  * Checks if `endDate > current date`.
 
-Then re-test `/profile`. You should get:
 
-```json
-{
-  "msg": "Account expired. Please renew."
-}
-```
+✅ If expired → return `403 Forbidden` with message like:
+
+> `"Account expired. Please renew your subscription."`
+
+✅ If token doesn't match → return `401 Unauthorized`.
 
 ---
 
-### 🧪 E. Logout
+### 🔹 4. **User Logout**
+#### URL:`/users/logout`
+
+* User hits `/logout` with a valid JWT in headers.
+* Middleware verifies user.
+* Sets `user.token = null` in DB.
+* Returns success message.
+
+✅ Invalidates token and logs out current device.
+
 
 **POST** `/api-hd/users/logout`
 Headers:
@@ -295,6 +117,204 @@ Authorization: Bearer <JWT_TOKEN>
 ```
 
 ---
+
+### 🔹 5. **Extend the user's account expiration.**
+
+
+Authenticated users can renew their account by providing a time duration in the request header.
+
+#### 🔐 Headers
+
+| Key        | Required | Example | Description                      |
+| ---------- | -------- | ------- | -------------------------------- |
+| `duration` | ✅ Yes    | `7d`    | Time to extend (e.g. `7d`,`30d`, `2h`) |
+
+#### ✅ Success Response
+
+```json
+{
+  "msg": "Renewed successfully",
+  "startDate": "2025-05-15T08:30:00.000Z",
+  "endDate": "2025-05-22T08:30:00.000Z"
+}
+```
+
+
+---
+### 🔹 6. **Get Min supported version**
+
+
+### 📦 `GET /api-hd/version/min`
+
+**Fetch the minimum supported app version.**
+
+Returns the lowest app version supported by the system.
+
+#### ✅ Success Response
+
+```json
+{
+  "min_support_version": "1.0.0"
+}
+```
+
+#### ❌ Error Responses
+
+* `404`: Version not found
+* `500`: Server error
+
+---
+
+### 🛠️ `POST /api-hd/version/min`
+
+**Set or update the minimum supported version.**
+
+#### 📥 Request Body
+
+```json
+{
+  "min_support_version": "1.2.0"
+}
+```
+
+#### ✅ Success Response
+
+### 🔹 7. **Get all `ds_dong_xe` records**
+### 🚗 `GET /api-hd/ds-dong-xe`
+
+Returns all available ds_dong_xe in the system.
+
+
+#### 🔐 Authentication
+
+Requires Bearer token.
+
+#### ✅ Success Response
+
+```json
+[
+    {
+        "_id": "1",
+        "anh_xe_path": "/1. Vision/anh_dong_xe.png",
+        "anh_xe_url": "https://storage.googleapis.com/phutunghd-e6a33.appspot.com/1.%20Vision/anh_dong_xe.png",
+        "ten_dong_xe": "Vision"
+    },
+    {
+        "_id": "2",
+        "anh_xe_path": "/2. Air Blade/anh_dong_xe.png",
+        "anh_xe_url": "https://storage.googleapis.com/phutunghd-e6a33.appspot.com/2.%20Air%20Blade/anh_dong_xe.png",
+        "ten_dong_xe": "Air Blade"
+    },
+]   
+```
+
+#### ❌ Error Responses
+
+* `404`: No car models found
+* `500`: Server error
+
+--- 
+
+### **🔹 8. Get all `dong-xe` records**
+### 🚘 `GET /api-hd/dong-xe`
+
+
+
+Returns the full list of dong_xe.
+
+#### 🔐 Authentication
+
+Requires Bearer token.
+
+#### ✅ Success Response
+
+```json
+{
+    "_id": "Air Blade",
+    "data": [
+        {
+            "anh_xe_path": "/2. Air Blade/1. Air Blade 110 2008 (ANC110ACV8)/anh_dong_xe.png",
+            "anh_xe_url": "https://storage.googleapis.com/phutunghd-e6a33.appspot.com/2.%20Air%20Blade/1.%20Air%20Blade%20110%202008%20%28ANC110ACV8%29/anh_dong_xe.png",
+            "id": "1",
+            "ten_xe": "Air Blade 110 2008 (ANC110ACV8)",
+            "ds_chi_tiet": []
+        },
+        {
+            "anh_xe_path": "/2. Air Blade/2. Air Blade FI 110 2010 (ACA110CBFA)/anh_dong_xe.png",
+            "anh_xe_url": "https://storage.googleapis.com/phutunghd-e6a33.appspot.com/2.%20Air%20Blade/2.%20Air%20Blade%20FI%20110%202010%20%28ACA110CBFA%29/anh_dong_xe.png",
+            "id": "2",
+            "ten_xe": "Air Blade FI 110 2010 (ACA110CBFA)",
+            "ds_chi_tiet": []
+        },
+        {
+            "anh_xe_path": "/2. Air Blade/3. Air Blade 110 2011 (ACA110CBFB)/anh_dong_xe.png",
+            "anh_xe_url": "https://storage.googleapis.com/phutunghd-e6a33.appspot.com/2.%20Air%20Blade/3.%20Air%20Blade%20110%202011%20%28ACA110CBFB%29/anh_dong_xe.png",
+            "id": "3",
+            "ten_xe": "Air Blade 110 2011 (ACA110CBFB)",
+            "ds_chi_tiet": []
+        }
+        ...
+    ]
+    ....
+}
+
+```
+
+#### ❌ Error Responses
+
+* `500`: Server error
+
+---
+
+### 🔎 `GET /api-hd/dong_xe/:id`
+
+**Get a specific `DongXe` by ID.**
+
+Fetches details of a car type by its unique ID.
+
+#### 🔐 Authentication
+
+Requires Bearer token.
+
+#### ✅ Success Response
+
+```json
+{
+    "_id": "Air Blade",
+    "data": [
+        {
+            "anh_xe_path": "/2. Air Blade/1. Air Blade 110 2008 (ANC110ACV8)/anh_dong_xe.png",
+            "anh_xe_url": "https://storage.googleapis.com/phutunghd-e6a33.appspot.com/2.%20Air%20Blade/1.%20Air%20Blade%20110%202008%20%28ANC110ACV8%29/anh_dong_xe.png",
+            "id": "1",
+            "ten_xe": "Air Blade 110 2008 (ANC110ACV8)",
+            "ds_chi_tiet": []
+        },
+        {
+            "anh_xe_path": "/2. Air Blade/2. Air Blade FI 110 2010 (ACA110CBFA)/anh_dong_xe.png",
+            "anh_xe_url": "https://storage.googleapis.com/phutunghd-e6a33.appspot.com/2.%20Air%20Blade/2.%20Air%20Blade%20FI%20110%202010%20%28ACA110CBFA%29/anh_dong_xe.png",
+            "id": "2",
+            "ten_xe": "Air Blade FI 110 2010 (ACA110CBFA)",
+            "ds_chi_tiet": []
+        },
+        {
+            "anh_xe_path": "/2. Air Blade/3. Air Blade 110 2011 (ACA110CBFB)/anh_dong_xe.png",
+            "anh_xe_url": "https://storage.googleapis.com/phutunghd-e6a33.appspot.com/2.%20Air%20Blade/3.%20Air%20Blade%20110%202011%20%28ACA110CBFB%29/anh_dong_xe.png",
+            "id": "3",
+            "ten_xe": "Air Blade 110 2011 (ACA110CBFB)",
+            "ds_chi_tiet": []
+        }
+        ...
+    ]
+}
+```
+
+#### ❌ Error Responses
+
+* `404`: DongXe not found
+* `500`: Server error
+
+
+
 
 
 
