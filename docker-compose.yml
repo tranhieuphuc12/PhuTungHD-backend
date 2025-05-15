@@ -1,22 +1,35 @@
-
 services:
-  backend:
+  backend-phutunghd:
     platform: linux/amd64
     container_name: backend-phutunghd
     image: tranhieuphuc12/express-api-phutunghd:latest
-    ports:
-      - "5000:5000"
+    expose:
+      - 3001
     depends_on:
       - mongodb
-    environment:
+    env_file:
       - .env
     restart: always
+    networks:
+      - nginx_network
 
-  mongodb:
+  phutunghd-mongodb:
     image: mongo
+    command: mongod --bind_ip_all
+    ports:
+      - 27017:27017
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=tranhieuphuc12
     volumes:
-      - mongo-data:/data/phutungdb
+      - mongodb_data:/data/phutungdb
     restart: always
+    networks:
+      - nginx_network
 
 volumes:
-  mongo-data:
+  mongodb_data:
+
+networks:
+  nginx_network:
+    external: true
