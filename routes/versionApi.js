@@ -19,8 +19,8 @@ router.get("/min", async (req, res) => {
     }
 });
 
-// POST /api-hd/version/min - Set minimum supported version
-router.post("/min", async (req, res) => {
+// PATCH /api-hd/version/min - Set minimum supported version
+router.patch("/min", async (req, res) => {
     try {
         const { min_support_version } = req.body;
 
