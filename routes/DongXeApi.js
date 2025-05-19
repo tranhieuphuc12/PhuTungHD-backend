@@ -1,4 +1,4 @@
-const { model } = require("mongoose");
+const mongoose = require("mongoose");
 const DongXe = require("../models/DongXe");
 const express = require("express");
 const router = express.Router();
