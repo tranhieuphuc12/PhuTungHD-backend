@@ -70,7 +70,7 @@ router.patch("/:id/ds-chi-tiet/:id2", auth, async (req, res) => {
         }
 
         await doiXe.save();
-        res.json({
+        res.status(200).json({
             message: `Chi tiet '${trimmedMaChiTiet}' updated successfully in part '${updatedPartName}'`,
             doiXe,
         });
